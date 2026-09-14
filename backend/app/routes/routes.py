@@ -98,15 +98,24 @@ async def create_invitee(payload: Dict[str, Any] = Body(...)):
 
     added = []
     for item in items:
+        phone_str = str(item.get("phone", "")).strip()
+        email_str = str(item.get("email", "")).strip()
+        
+        errors = []
+        if not phone_str or len(phone_str) < 8 or phone_str.lower() == "phone":
+            errors.append("Invalid phone format (must have standard country code & 10 digits)")
+        if not email_str:
+            errors.append("Invalid phone or email format")
+            
         inv = {
             "_id": f"inv_{uuid4().hex[:8]}",
             "externalId": str(item.get("id", "")),
             "name": item.get("name", "Unknown"),
-            "phone": str(item.get("phone", "")),
-            "email": str(item.get("email", "")),
+            "phone": phone_str,
+            "email": email_str,
             "company": str(item.get("company", "")),
-            "raw_row_valid": bool(item.get("phone") and item.get("email")),
-            "validation_errors": [] if item.get("phone") and item.get("email") else ["Invalid phone or email format"],
+            "raw_row_valid": len(errors) == 0,
+            "validation_errors": errors,
             "createdAt": datetime.utcnow()
         }
         added.append(inv)
