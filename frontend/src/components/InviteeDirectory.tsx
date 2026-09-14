@@ -31,7 +31,7 @@ export function InviteeDirectory({ invitees, onRefresh }: InviteeDirectoryProps)
       complete: async (results) => {
         try {
           const parsedRows = results.data;
-          const res = await fetch('http://localhost:8000/api/invitees', {
+          const res = await fetch('/api/invitees', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: parsedRows })
@@ -60,14 +60,14 @@ export function InviteeDirectory({ invitees, onRefresh }: InviteeDirectoryProps)
     setIsGenerating(true);
     setUploadStatus(`Generating ${count} synthetic invitees for scale test...`);
     try {
-      const res = await fetch('http://localhost:8000/api/invitees', {
+      const res = await fetch('/api/invitees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ generate_count: count })
       });
       const data = await res.json();
       if (data.success) {
-        setUploadStatus(`Generated ${data.generated} invitees cleanly into MongoDB Atlas! (${data.invalidCount} flagged format errors)`);
+        setUploadStatus(`Generated ${data.generated} invitees cleanly! (${data.invalidCount} flagged format errors for test)`);
         onRefresh();
       }
     } catch (err: any) {
@@ -76,7 +76,6 @@ export function InviteeDirectory({ invitees, onRefresh }: InviteeDirectoryProps)
       setIsGenerating(false);
     }
   };
-
 
   const filtered = invitees.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

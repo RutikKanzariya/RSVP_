@@ -27,7 +27,7 @@ export function NewCampaignForm({ invitees, onCampaignCreated, onCancel }: NewCa
     setErrorMsg(null);
 
     try {
-      const res = await fetch('http://localhost:8000/api/campaigns', {
+      const res = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

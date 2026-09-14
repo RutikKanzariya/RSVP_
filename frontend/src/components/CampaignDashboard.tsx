@@ -29,7 +29,7 @@ export function CampaignDashboard({ campaign, invitees, callAttempts, onRefresh,
   const completedCount = confirmed + declined + undecided + failed;
   const progressPercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
-  // Backend handles batching and MongoDB bulk updates in ~1-2 seconds
+  // Batch calling execution loop (bounded concurrency chunking to prevent Vercel 10s timeout)
   const startCallingCampaign = async () => {
     const pendingInvitees = invitees.filter(i => i.status === 'pending');
     if (pendingInvitees.length === 0) return;
@@ -37,24 +37,38 @@ export function CampaignDashboard({ campaign, invitees, callAttempts, onRefresh,
     setIsRunningBatch(true);
     setBatchProgress({ processed: 0, total: pendingInvitees.length, currentName: 'Initializing AI calling engine...' });
 
-    try {
-      setBatchProgress({ processed: pendingInvitees.length / 2, total: pendingInvitees.length, currentName: `Simulating ${pendingInvitees.length} Calls Serverside...` });
+    // Process in batches of 3 concurrently
+    const chunkSize = 3;
+    for (let i = 0; i < pendingInvitees.length; i += chunkSize) {
+      const chunk = pendingInvitees.slice(i, i + chunkSize);
       
-      await fetch('http://localhost:8000/api/calling/execute-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: campaign.id
-        })
+      setBatchProgress({
+        processed: i,
+        total: pendingInvitees.length,
+        currentName: `Calling ${chunk.map(c => c.name.split(' ')[0]).join(', ')}...`
       });
-      
-      setBatchProgress({ processed: pendingInvitees.length, total: pendingInvitees.length, currentName: 'Batch process complete!' });
-    } catch (err) {
-      console.error('Call failed', err);
-    } finally {
-      setIsRunningBatch(false);
+
+      // Fire parallel requests to calling service API
+      await Promise.all(
+        chunk.map(inv =>
+          fetch('/api/calling-service', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaign_invitee_id: inv.id,
+              simulated_delay_ms: 600 + Math.floor(Math.random() * 400)
+            })
+          }).catch(err => console.error('Call failed', err))
+        )
+      );
+
+      // Refresh UI state continuously
       onRefresh();
     }
+
+    setBatchProgress({ processed: pendingInvitees.length, total: pendingInvitees.length, currentName: 'Batch process complete!' });
+    setIsRunningBatch(false);
+    onRefresh();
   };
 
   const filteredInvitees = invitees.filter(inv => {
